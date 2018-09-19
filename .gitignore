@@ -122,5 +122,17 @@ tests/logs
 test.py
 test.sh
 
+log.txt
+log1.txt
+log2.txt
+log3.txt
+log4.txt
+log5.txt
+log6.txt
 
+likes_history.txt
+follow_history.txt
+unfollow_history.txt
+server_calls_history.txt
+ban_history.txt
 

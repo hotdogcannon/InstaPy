@@ -107,3 +107,20 @@ logs/
 # pytest
 .pytest_cache/
 tests/logs
+
+
+# plotting scripts, etc
+002_read_json.py
+00_wrapper.sh
+00_wrapper_simple.sh
+01_interact_by_hashtag.py
+02_reduce_following.py
+03_email_status.py
+04_plot_followers.py
+05_plot_actions.py
+001_run_between_two_times.sh
+test.py
+test.sh
+
+
+

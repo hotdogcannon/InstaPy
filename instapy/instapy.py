@@ -1709,6 +1709,14 @@ class InstaPy:
                                                         self.logfolder)
                                 if follow_state == True:
                                     followed += 1
+                                    
+                                    ## jka: follow history log file: write username, tag, timestamp, epoch time to file
+                                    with open("follow_history.txt",'a') as log:
+                                        timestamp = datetime.strftime(datetime.now(), '%a_%b_%d_%H:%M:%S_%Y')
+                                        username_plus_spaces = user_name+(31-len(user_name))*' '
+                                        tag_plus_spaces = self.tagstr+(21-len(self.tagstr))*' '
+                                        log.write(username_plus_spaces+tag_plus_spaces+'\t'.join([ timestamp, str(int(time.time())) ])+'\n')
+
                             else:
                                 self.logger.info('--> Not following')
                                 sleep(1)
@@ -1847,12 +1855,12 @@ class InstaPy:
                 if follow_state == True:
                     followed += 1
                     
-                    ## jka: follow history log file: write username, tag, timestamp, epoch time to file
-                    with open("follow_history.txt",'a') as log:
-                        timestamp = datetime.strftime(datetime.now(), '%a_%b_%d_%H:%M:%S_%Y')
-                        username_plus_spaces = username+(31-len(username))*' '
-                        tag_plus_spaces = self.tagstr+(21-len(self.tagstr))*' '
-                        log.write(username_plus_spaces+tag_plus_spaces+'\t'.join([ timestamp, str(int(time.time())) ])+'\n')
+                    ### jka: follow history log file: write username, tag, timestamp, epoch time to file
+                    #with open("follow_history.txt",'a') as log:
+                    #    timestamp = datetime.strftime(datetime.now(), '%a_%b_%d_%H:%M:%S_%Y')
+                    #    username_plus_spaces = username+(31-len(username))*' '
+                    #   tag_plus_spaces = self.tagstr+(21-len(self.tagstr))*' '
+                    #   log.write(username_plus_spaces+tag_plus_spaces+'\t'.join([ timestamp, str(int(time.time())) ])+'\n')
                     
             else:
                 self.logger.info('--> Not following')

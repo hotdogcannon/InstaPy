@@ -18,6 +18,7 @@ import logging
 from contextlib import contextmanager
 from copy import deepcopy
 import glob ##jka
+from datetime import datetime ##jka
 
 # import InstaPy modules
 from .clarifai_util import check_image

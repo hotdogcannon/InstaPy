@@ -6,6 +6,7 @@ import json
 import csv
 import sqlite3
 from math import ceil
+import time ## jka
 
 from .time_util import sleep
 from .util import delete_line_from_file

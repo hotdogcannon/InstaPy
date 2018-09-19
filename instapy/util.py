@@ -24,10 +24,6 @@ from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import WebDriverException
 from selenium.common.exceptions import TimeoutException
 
-## jka: test
-pass
-pass
-
 
 def is_private_profile(browser, logger, following=True):
     is_private = None
@@ -128,6 +124,16 @@ def validate_username(browser,
         following_count if following_count else 'unknown',
         float("{0:.2f}".format(relationship_ratio)) if relationship_ratio else 'unknown'))
 
+        ### jka: ignore users with 'strange' / None type / irretrievable follower,following counts
+        if followers_count and following_count:
+            pass
+        else:
+            print('\n\n')
+            print('found user with strange following/follower data: '+username)
+            print('\n\n')
+            return False, "User {} has strange follower/following data...ignoring!\n".format(username)
+        ###
+        
         if followers_count  or following_count:
             if potency_ratio and not delimit_by_numbers:
                 if relationship_ratio and relationship_ratio < potency_ratio:

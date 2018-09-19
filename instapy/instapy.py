@@ -17,6 +17,7 @@ from pyvirtualdisplay import Display
 import logging
 from contextlib import contextmanager
 from copy import deepcopy
+import glob ##jka
 
 # import InstaPy modules
 from .clarifai_util import check_image
@@ -65,9 +66,6 @@ from .database_engine import get_database
 from selenium.common.exceptions import NoSuchElementException, WebDriverException
 
 
-## jka: test
-pass
-pass
 
 class InstaPyError(Exception):
     """General error for InstaPy exceptions"""
@@ -133,6 +131,7 @@ class InstaPy:
         self.video_comments = []
 
         self.liked_img = 0
+        self.liked_img_per_tag = 0 ## jka: local 'per tag' counter variable
         self.already_liked = 0
         self.commented = 0
         self.followed = 0
@@ -1412,7 +1411,8 @@ class InstaPy:
                      use_smart_hashtags=False,
                      interact=False,
                      randomize=False,
-                     media=None):
+                     media=None,
+                     max_likes_given_per_tag=5): ##jka: added 'max_likes_given_per_tag' input to fnct
         """Likes (default) 50 images per given tag"""
         if self.aborting:
             return self
@@ -1423,6 +1423,66 @@ class InstaPy:
         commented = 0
         followed = 0
         not_valid_users = 0
+        
+        
+        
+        ## jka:
+        ## initialize 'restricted_users' as an empty list
+        ## within this function, users in this list will not be interacted with
+        ## this means both and initial like AND a subsequent like_by_users()
+        
+        restricted_users=[]
+        
+        ## jka: get users from the .csv file '<<username>>_record_all_followed.csv' and add them to 'restricted_users'
+        try:
+            with open('./logs/'+self.username+'/'+self.username+'_record_all_followed.csv', 'r') as f_in:
+                lines = [ line.strip() for line in f_in ]
+                lines = [ line for line in lines if line ] ## take only non-blank lines
+                lines = [ line.rstrip(',') for line in lines ] ## remove trailing comma        
+                restricted_users += lines
+        except FileNotFoundError:
+            pass
+            
+        ## jka: get the users from 'followingRestriction.json' and add them to 'restricted_users'
+        try:
+            with open('./logs/'+self.username+'/followRestriction.json') as f:
+                d = json.load(f)
+            restricted_users += [a for a in d[self.username]]
+        except FileNotFoundError:
+            pass
+        
+        ## jka: get the latest 'following' user list and add them to 'restricted_users'
+        try:
+            list_of_files = glob.glob('./logs/'+self.username+'/relationship_data/'+self.username+'/following/*.json')
+            latest_file = max(list_of_files, key=os.path.getctime)
+            with open(latest_file) as f:
+                d = json.load(f)
+            restricted_users += [a for a in d]
+        except FileNotFoundError:
+            pass
+        
+        ## jka: get users from the .txt file 'users_interacted_with_this_session.txt' and add them to 'restricted_users'
+        try:
+            with open('users_interacted_with_this_session.txt', 'r') as f_in:
+                lines = [ line.strip() for line in f_in ]
+                lines = [ line for line in lines if line ] ## take only non-blank lines
+                restricted_users += lines
+        except FileNotFoundError:
+            pass
+        
+
+        ## jka: uniquefy the list to keep it all clean
+        print('\n\n')
+        print('len \'restricted_users\': '+str(len(restricted_users)))
+        restricted_users = list(set(restricted_users))
+        print('len \'restricted_users\' (unique): '+str(len(restricted_users)))
+        print('\n\n')
+        print('restricted_users this session: '+'\n\n'+' '.join(restricted_users))
+        print('\n\n')
+        
+        
+        
+        
 
         # if smart hashtag is enabled
         if use_smart_hashtags is True and self.smart_hashtags is not []:
@@ -1434,7 +1494,7 @@ class InstaPy:
         tags = tags or []
         self.quotient_breach = False
 
-        for index, tag in enumerate(tags):
+        for index, tag in enumerate(tags): ## iterate through tags
             if self.quotient_breach:
                 break
 
@@ -1453,7 +1513,13 @@ class InstaPy:
                 self.logger.info('Too few images, skipping this tag')
                 continue
 
-            for i, link in enumerate(links):
+            ## jka: reset the 'per tag' like counter before iterating through links
+            ## I think it has to be a self._____ var bc it must be global
+            ## It must be visible tp like_by_user() when interacting
+            
+            self.liked_img_per_tag = 0
+            
+            for i, link in enumerate(links): ## jka: iterate through links (posts)
                 if self.jumps["consequent"]["likes"] >= self.jumps["limit"]["likes"]:
                     self.logger.warning("--> Like quotient reached its peak!\t~leaving Like-By-Tags activity\n")
                     self.quotient_breach = True
@@ -1463,6 +1529,17 @@ class InstaPy:
 
                 self.logger.info('[{}/{}]'.format(i + 1, len(links)))
                 self.logger.info(link)
+                
+                ## jka: check if the 'max_likes_given_per_tag' was reached
+
+                if (self.liked_img_per_tag >= max_likes_given_per_tag):
+                    print('\n\n')
+                    print('number of liked images GREATER THAN OR EQUAL TO max ('+str(max_likes_given_per_tag)+')!')
+                    print('breaking the \'links\' loop...')
+                    print('num liked images (this tag): '+str(self.liked_img_per_tag))
+                    print('num liked images (total): '+str(self.liked_img))
+                    print('\n\n')
+                    break
 
                 try:
                     inappropriate, user_name, is_video, reason, scope = (
@@ -1498,6 +1575,32 @@ class InstaPy:
                         else:
                             web_address_navigator(self.browser, link)
 
+                        
+                        
+                        ## jka: customized check to not target a user more than once
+                        if (user_name in restricted_users):
+                            print('\n\n')
+                            print('user already interacted with recently: '+user_name)
+                            print('getting next link...')
+                            #print('users this session: '+' '.join(restricted_users))
+                            print('\n\n')
+                            continue
+                        else:
+                            print('\n\n')
+                            print('user will be interacted with: '+user_name)
+                            print('\n\n')
+                            restricted_users.append(user_name)
+                            
+                            ## jka: here you could think about dumping the restricted users list to a text file to be read in next time
+                            ## If the script crashes and doesnt write out data properly, you could still have your own log
+                            
+                            f = open('users_interacted_with_this_session.txt', 'a')
+                            f.write(user_name+'\n')
+                            f.close()
+                        
+                        
+                        
+
                         #try to like
                         like_state, msg = like_image(self.browser,
                                            user_name,
@@ -1506,6 +1609,23 @@ class InstaPy:
                                            self.logfolder)
 
                         if like_state == True:
+                        
+                            
+                            self.liked_img += 1 ## jka
+                            self.liked_img_per_tag += 1 ## jka
+                            
+                            ## jka: write user, like, timestamp to file
+                            with open('likes_history.txt','a') as log:
+                                timestamp = datetime.strftime(datetime.now(), '%a_%b_%d_%H:%M:%S_%Y')
+                                user_name_plus_spaces = user_name+(31-len(user_name))*' '
+                                log.write(user_name_plus_spaces+'\t'.join([ timestamp, str(int(time.time())) ])+'\n')
+
+                            ### jka: make a self.______ variable (the hashtag) for like_by_users()
+                            ### Not sure if this is necessary
+                            self.tagstr = tag
+  
+                            
+                            
                             liked_img += 1
                             # reset jump counter after a successful like
                             self.jumps["consequent"]["likes"] = 0
@@ -1603,6 +1723,19 @@ class InstaPy:
                                                     self.user_interact_random,
                                                     self.user_interact_media)
 
+                            
+                            
+                            ## jka: report the state of some variables for debugging
+                            ## this is done after a like + like_by_users() sweep
+                            print('\n\n')
+                            print('an interaction sweep has been completed')
+                            print('\'self.liked_img\': '+str(self.liked_img))
+                            print('\'self.liked_img_per_tag\': '+str(self.liked_img_per_tag))
+                            print('\'self.followed\': '+str(self.followed))
+                            print('\n\n')
+                            
+                            
+                            
                         elif msg == "already liked":
                             already_liked += 1
 
@@ -1712,6 +1845,14 @@ class InstaPy:
                                         self.logfolder)
                 if follow_state == True:
                     followed += 1
+                    
+                    ## jka: follow history log file: write username, tag, timestamp, epoch time to file
+                    with open("follow_history.txt",'a') as log:
+                        timestamp = datetime.strftime(datetime.now(), '%a_%b_%d_%H:%M:%S_%Y')
+                        username_plus_spaces = username+(31-len(username))*' '
+                        tag_plus_spaces = self.tagstr+(21-len(self.tagstr))*' '
+                        log.write(username_plus_spaces+tag_plus_spaces+'\t'.join([ timestamp, str(int(time.time())) ])+'\n')
+                    
             else:
                 self.logger.info('--> Not following')
                 sleep(1)
@@ -1761,6 +1902,15 @@ class InstaPy:
                         if like_state == True:
                             total_liked_img += 1
                             liked_img += 1
+                            self.liked_img_per_tag += 1 ## jka: to play nicely with like_by_tags()
+                            
+                            ## jka: write user, like, timestamp to file
+                            with open('likes_history.txt','a') as log:
+                                timestamp = datetime.strftime(datetime.now(), '%a_%b_%d_%H:%M:%S_%Y')
+                                user_name_plus_spaces = user_name+(31-len(user_name))*' '
+                                log.write(user_name_plus_spaces+'\t'.join([ timestamp, str(int(time.time())) ])+'\n')
+                                
+                                
                             # reset jump counter after a successful like
                             self.jumps["consequent"]["likes"] = 0
 
@@ -1849,12 +1999,14 @@ class InstaPy:
         self.logger.info('Commented: {}'.format(commented))
         self.logger.info('Inappropriate: {}'.format(inap_img))
         self.logger.info('Not valid users: {}\n'.format(not_valid_users))
-
+        self.logger.info('Followed: {}\n'.format(followed)) ## jka    
+        
         self.liked_img += liked_img
         self.already_liked += already_liked
         self.commented += commented
         self.inap_img += inap_img
         self.not_valid_users += not_valid_users
+        self.followed += followed ## jka
 
         return self
 

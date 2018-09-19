@@ -320,6 +320,14 @@ def unfollow(browser,
                         sleep_counter += 1
                         # reset jump counter after a successful unfollow
                         jumps["consequent"]["unfollows"] = 0
+                        
+                        
+                        ### jka: unfollow history log file: write user, timestamp, epoch time to file
+                        with open("unfollow_history.txt",'a') as log:
+                            timestamp = datetime.strftime(datetime.now(), '%a_%b_%d_%H:%M:%S_%Y')
+                            person_plus_spaces = person+(31-len(person))*' '
+                            log.write(person_plus_spaces+'\t'.join([ timestamp, str(int(time.time())) ])+'\n')   
+                        ###
 
                     elif msg == "jumped":
                         # will break the loop after certain consecutive jumps
